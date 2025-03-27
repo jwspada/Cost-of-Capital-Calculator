@@ -293,6 +293,94 @@ def eq_coc(
 
     return rho
 
+def eq_coc_blended(
+    delta,
+    z,
+    w,
+    u,
+    u_ind,
+    u_d,
+    inv_tax_credit,
+    psi,
+    nu,
+    pi,
+    r,
+    re_credit=None,
+    asset_code=None,
+    ind_code=None,
+):
+    r"""
+    Compute the cost of capital with a blended tau
+
+    .. math::
+        \rho = \frac{(r-\pi+\delta)}{1-u}(1-u_dz(1-\psi k) - k\nu)+w-\delta
+
+    Args:
+        delta (array_like): rate of economic depreciation
+        z (array_like): net present value of depreciation deductions for
+            $1 of investment
+        w (scalar): property tax rate
+        u (scalar): marginal tax rate for the first layer of
+            income taxes
+        u_ind (scalar): marginal tax rate for the first layer of
+            income taxes (individual)
+        u_d (scalar): marginal tax rate on deductions
+        inv_tax_credit (scalar): investment tax credit rate
+        psi (scalar): fraction investment tax credit that affects
+            depreciable basis of the investment
+        nu (scalar): NPV of the investment tax credit
+        pi (scalar): inflation rate
+        r (scalar): discount rate
+        re_credit (dict): rate of R&E credit by asset or industry
+        asset_code (array_like): asset code
+        ind_code (array_like): industry code
+
+    Returns:
+        rho_blended (array_like): the cost of capital
+
+    """
+    # Initialize re_credit_rate (only needed if arrays are passed in --
+    # if not, can include the R&E credit in the inv_tax_credit object)
+    if isinstance(delta, np.ndarray):
+        re_credit_rate_ind = np.zeros_like(delta)
+        re_credit_rate_asset = np.zeros_like(delta)
+        # Update by R&E credit rate amounts by industry
+        if (ind_code is not None) and (re_credit is not None):
+            idx = [
+                index
+                for index, element in enumerate(ind_code)
+                if element in re_credit["By industry"].keys()
+            ]
+            ind_code_idx = [ind_code[i] for i in idx]
+            re_credit_rate_ind[idx] = [
+                re_credit["By industry"][ic] for ic in ind_code_idx
+            ]
+        # Update by R&E credit rate amounts by asset
+        if (asset_code is not None) and (re_credit is not None):
+            idx = [
+                index
+                for index, element in enumerate(asset_code)
+                if element in re_credit["By asset"].keys()
+            ]
+            asset_code_idx = [asset_code[i] for i in idx]
+            re_credit_rate_asset[idx] = [
+                re_credit["By asset"][ac] for ac in asset_code_idx
+            ]
+        # take the larger of the two R&E credit rates
+        inv_tax_credit += np.maximum(re_credit_rate_asset, re_credit_rate_ind)
+
+    # calculated the blended tax rate with a weighted average of the individual and corporate top rates
+    u_blended = 0.605*u + 0.395*u_ind
+
+    rho_blended = (
+        ((r - pi + delta) / (1 - u_blended))
+        * (1 - inv_tax_credit * nu - u_blended* z * (1 - psi * inv_tax_credit))
+        + w
+        - delta
+    )
+
+    return rho_blended
+
 
 def eq_coc_inventory(u, phi, Y_v, pi, r):
     r"""
@@ -337,6 +425,24 @@ def eq_ucc(rho, delta):
     """
     ucc = rho + delta
     return ucc
+
+def eq_ucc_blended(rho_blended, delta):
+    r"""
+    Compute the blended user cost of capital
+
+    .. math::
+        ucc = \rho + \delta
+
+    Args:
+        rho_blended (array_like): blended cost of capital
+        delta (array_like): rate of economic depreciation
+
+    Returns:
+        ucc_blended (array_like): the user cost of capital
+
+    """
+    ucc_blended = rho_blended + delta
+    return ucc_blended
 
 
 def eq_metr(rho, r_prime, pi):

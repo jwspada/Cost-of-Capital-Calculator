@@ -15,8 +15,10 @@ from ccc.calcfunctions import (
     update_depr_methods,
     npv_tax_depr,
     eq_coc,
+    eq_coc_blended,
     eq_coc_inventory,
     eq_ucc,
+    eq_ucc_blended,
     eq_metr,
     eq_mettr,
     eq_tax_wedge,
@@ -141,6 +143,9 @@ class Calculator:
                 dfs[t]["ucc_" + str(f)] = eq_ucc(
                     dfs[t]["rho_" + str(f)], dfs[t]["delta"]
                 )
+                dfs[t]["ucc_blended_" + str(f)] = eq_ucc_blended(
+                    dfs[t]["rho_blended_" + str(f)], dfs[t]["delta"]
+                )
                 dfs[t]["metr_" + str(f)] = eq_metr(
                     dfs[t]["rho_" + str(f)],
                     self.__p.r_prime[t][f],
@@ -201,6 +206,22 @@ class Calculator:
                     dfs[t]["z_" + str(f)],
                     self.__p.property_tax,
                     self.__p.u[t],
+                    self.__p.u_d[t],
+                    self.__p.inv_tax_credit,
+                    self.__p.psi,
+                    self.__p.nu,
+                    self.__p.inflation_rate,
+                    self.__p.r[t][f],
+                    self.__p.re_credit,
+                    dfs[t]["bea_asset_code"],
+                    dfs[t]["bea_ind_code"],
+                )
+                dfs[t]["rho_blended_" + str(f)] = eq_coc_blended(
+                    dfs[t]["delta"],
+                    dfs[t]["z_" + str(f)],
+                    self.__p.property_tax,
+                    self.__p.u[t],
+                    self.__p.u_ind[t],
                     self.__p.u_d[t],
                     self.__p.inv_tax_credit,
                     self.__p.psi,
